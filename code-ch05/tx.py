@@ -116,7 +116,22 @@ class Tx:
         # parse num_outputs number of TxOuts
         # locktime is an integer in 4 bytes, little-endian
         # return an instance of the class (see __init__ for args)
-        raise NotImplementedError
+        version = s.read(4)
+        if len(version) != 4:
+            raise ValueError("Version length error")
+        version = little_endian_to_int(version)
+        
+        num_inputs = read_varint(s)
+        tx_ins = [TxIn.parse(s) for _ in range(num_inputs)]
+
+        num_outputs = read_varint(s)
+        tx_outs = [TxOut.parse(s) for _ in range(num_outputs)]
+        
+        locktime = s.read(4)
+        if len(locktime) != 4:
+            raise ValueError("Lock time length error")
+        locktime = little_endian_to_int(locktime)
+        return cls(version,tx_ins,tx_outs,locktime)
 
     # tag::source6[]
     def serialize(self):
@@ -138,8 +153,13 @@ class Tx:
         # use TxIn.value() to sum up the input amounts
         # use TxOut.amount to sum up the output amounts
         # fee is input sum - output sum
-        raise NotImplementedError
-
+        input_sum = 0
+        for tx_in in self.tx_ins:
+            input_sum += tx_in.value()
+        output_sum = 0
+        for tx_out in self.tx_outs:
+            output_sum += tx_out.amount
+        return input_sum - output_sum
 
 # tag::source2[]
 class TxIn:
@@ -169,7 +189,24 @@ class TxIn:
         # use Script.parse to get the ScriptSig
         # sequence is an integer in 4 bytes, little-endian
         # return an instance of the class (see __init__ for args)
-        raise NotImplementedError
+        prev_tx = s.read(32)
+        if len(prev_tx) != 32:
+            raise ValueError("Prev tx length error")
+        prev_tx = prev_tx[::-1]
+        
+        prev_index = s.read(4)
+        if len(prev_index) != 4:
+            raise ValueError("Prev index length error")
+        prev_index = little_endian_to_int(prev_index)
+
+        script_sig = Script.parse(s)
+
+        sequence = s.read(4)
+        if len(sequence) != 4:
+            raise ValueError("Sequence length error")
+        sequence = little_endian_to_int(sequence)
+        
+        return cls(prev_tx,prev_index, script_sig, sequence)
 
     # tag::source5[]
     def serialize(self):
@@ -220,7 +257,13 @@ class TxOut:
         # amount is an integer in 8 bytes, little endian
         # use Script.parse to get the ScriptPubKey
         # return an instance of the class (see __init__ for args)
-        raise NotImplementedError
+        amount = s.read(8)
+        if len(amount) != 8:
+            raise ValueError("Amount length error")
+        amount = little_endian_to_int(amount)
+
+        script_pubkey = Script.parse(s)
+        return cls(amount,script_pubkey)
 
     # tag::source4[]
     def serialize(self):  # <1>
