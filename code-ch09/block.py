@@ -32,7 +32,35 @@ class Block:
         # bits - 4 bytes
         # nonce - 4 bytes
         # initialize class
-        raise NotImplementedError
+        version = s.read(4)
+        if len(version) != 4:
+            raise ValueError("version legth invalid")
+        version = little_endian_to_int(version)
+
+        prev_block = s.read(32)
+        if len(prev_block) != 32:
+            raise ValueError("prev_block length invalid")
+        prev_block = prev_block[::-1]
+
+        merkle_root = s.read(32)
+        if len(merkle_root) != 32:
+            raise ValueError("merkle_root length invalid")
+        merkle_root = merkle_root[::-1]
+
+        timestamp = s.read(4)
+        if len(timestamp) != 4:
+            raise ValueError("timestamp length invalid")
+        timestamp = little_endian_to_int(timestamp)
+
+        bits = s.read(4)
+        if len(bits) != 4:
+            raise ValueError("bits length invalid")
+
+        nonce = s.read(4)
+        if len(nonce) != 4:
+            raise ValueError("nonce lenth invalid")
+
+        return cls(version, prev_block, merkle_root, timestamp, bits, nonce)
 
     def serialize(self):
         '''Returns the 80 byte block header'''
@@ -42,33 +70,48 @@ class Block:
         # timestamp - 4 bytes, little endian
         # bits - 4 bytes
         # nonce - 4 bytes
-        raise NotImplementedError
+        version = int_to_little_endian(self.version,4)
+        prev_block = self.prev_block[::-1]
+        merkle_root = self.merkle_root[::-1]
+        timestamp = int_to_little_endian(self.timestamp,4)
+        bits = self.bits
+        nonce = self.nonce
+        return version + prev_block + merkle_root + timestamp + bits + nonce
 
     def hash(self):
         '''Returns the hash256 interpreted little endian of the block'''
         # serialize
         # hash256
         # reverse
-        raise NotImplementedError
+        serialized = self.serialize()
+        hashed = hash256(serialized)
+        reversed = hashed[::-1]
+        return reversed
 
     def bip9(self):
         '''Returns whether this block is signaling readiness for BIP9'''
         # BIP9 is signalled if the top 3 bits are 001
         # remember version is 32 bytes so right shift 29 (>> 29) and see if
         # that is 001
-        raise NotImplementedError
+        if self.version >> 29 == 0b001:
+            return True
+        return False
 
     def bip91(self):
         '''Returns whether this block is signaling readiness for BIP91'''
         # BIP91 is signalled if the 5th bit from the right is 1
         # shift 4 bits to the right and see if the last bit is 1
-        raise NotImplementedError
+        if self.version >> 4 & 1 == 1:
+            return True
+        return False
 
     def bip141(self):
         '''Returns whether this block is signaling readiness for BIP141'''
         # BIP91 is signalled if the 2nd bit from the right is 1
         # shift 1 bit to the right and see if the last bit is 1
-        raise NotImplementedError
+        if self.version >> 1 & 1 == 1:
+            return True
+        return False
 
     def target(self):
         '''Returns the proof-of-work target based on the bits'''
@@ -78,14 +121,14 @@ class Block:
         '''Returns the block difficulty based on the bits'''
         # note difficulty is (target of lowest difficulty) / (self's target)
         # lowest difficulty has bits that equal 0xffff001d
-        raise NotImplementedError
+        return 0xffff * 256 ** (0x1d - 3) / self.target ()
 
     def check_pow(self):
         '''Returns whether this block satisfies proof of work'''
         # get the hash256 of the serialization of this block
         # interpret this hash as a little-endian number
         # return whether this integer is less than the target
-        raise NotImplementedError
+        return little_endian_to_int(hash256(self.serialize())) < self.target()
 
 
 class BlockTest(TestCase):
